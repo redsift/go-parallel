@@ -11,4 +11,12 @@ jobs:
 
     steps:
       - checkout
-      - run: go test -v ./...
+      - run:
+          name: Setup go to junit
+          command: |
+            go get -u github.com/jstemmer/go-junit-report
+            mkdir -p test-results/default
+
+      - run: go test -v ./... 2>&1 | go-junit-report > test-results/default/report.xml
+      - store_test_results:
+          path: test-results
