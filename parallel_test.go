@@ -17,7 +17,7 @@ func TestExplicit(t *testing.T) {
 
 	var total int
 
-	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, func(t interface{}, a interface{}) interface{} {
 		return t.(int) + a.(int)
@@ -25,6 +25,10 @@ func TestExplicit(t *testing.T) {
 		total = t.(int)
 		and.Done()
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int{0, 1, 2, -1} {
 		q <- v
@@ -41,7 +45,10 @@ func TestExplicit(t *testing.T) {
 func TestReducerAdd(t *testing.T) {
 	add := reducers.NewAssociativeInt64(0, reducers.Add)
 
-	q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then())
+	q, err := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int64{0, 1, 2, -1} {
 		q <- v
@@ -61,9 +68,13 @@ func TestReducerAdd(t *testing.T) {
 func TestReducerMult1(t *testing.T) {
 	add := reducers.NewAssociativeInt64(0, reducers.Multiply)
 
-	q := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, add.Reducer(), add.Then())
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int64{0, 1, 2, -1} {
 		q <- v
@@ -83,9 +94,13 @@ func TestReducerMult1(t *testing.T) {
 func TestReducerMult2(t *testing.T) {
 	add := reducers.NewAssociativeInt64(1, reducers.Multiply)
 
-	q := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, add.Reducer(), add.Then())
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int64{1, 2, -1} {
 		q <- v
@@ -105,9 +120,13 @@ func TestReducerMult2(t *testing.T) {
 func TestReducerMin(t *testing.T) {
 	add := reducers.NewAssociativeInt64(math.MaxInt64, reducers.Min)
 
-	q := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, add.Reducer(), add.Then())
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int64{0, 1, -22, -1} {
 		q <- v
@@ -127,9 +146,13 @@ func TestReducerMin(t *testing.T) {
 func TestReducerMax(t *testing.T) {
 	add := reducers.NewAssociativeInt64(math.MinInt64, reducers.Max)
 
-	q := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, add.Reducer(), add.Then())
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int64{0, 1, -22, -1} {
 		q <- v
@@ -155,7 +178,7 @@ func TestCancel(t *testing.T) {
 
 	var total int
 
-	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, func(t interface{}, a interface{}) interface{} {
 		return t.(int) + a.(int)
@@ -169,6 +192,10 @@ func TestCancel(t *testing.T) {
 		}
 		and.Done()
 	}, OptContext(ctx))
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for i := 0; i < 1000; i++ {
 		q <- i
@@ -187,9 +214,8 @@ func TestPanicMap(t *testing.T) {
 	var and sync.WaitGroup
 	and.Add(1)
 
-	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		panic("junk")
-		return j
 	}, func(t interface{}, a interface{}) interface{} {
 		return t.(int) + a.(int)
 	}, func(_ interface{}, err error) {
@@ -198,6 +224,10 @@ func TestPanicMap(t *testing.T) {
 		}
 		and.Done()
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int{0, 1, 2, -1} {
 		q <- v
@@ -212,17 +242,20 @@ func TestPanicReduce(t *testing.T) {
 	var and sync.WaitGroup
 	and.Add(1)
 
-	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
+	q, err := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, func(t interface{}, a interface{}) interface{} {
 		panic("junk")
-		return t.(int) + a.(int)
 	}, func(_ interface{}, err error) {
 		if pnk := err.(ErrTrappedPanic).Panic; pnk != "junk" {
 			t.Error("unexpected value trapped", pnk)
 		}
 		and.Done()
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, v := range []int{0, 1, 2, -1} {
 		q <- v
@@ -240,7 +273,7 @@ func BenchmarkSimple(b *testing.B) {
 
 		var total int
 
-		q := Parallel(0,
+		q, err := Parallel(0,
 			func(_ interface{}, j interface{}) interface{} {
 				return j
 			}, func(p interface{}, a interface{}) interface{} {
@@ -249,6 +282,10 @@ func BenchmarkSimple(b *testing.B) {
 				total = t.(int)
 				and.Done()
 			})
+
+		if err != nil {
+			b.Fatal(err)
+		}
 
 		for _, v := range []int{0, 1, 2, -1} {
 			q <- v
@@ -275,7 +312,7 @@ func BenchmarkMappers(b *testing.B) {
 
 		var total int
 
-		q := Parallel(0,
+		q, err := Parallel(0,
 			func(_ interface{}, j interface{}) interface{} {
 				return j
 			}, func(p interface{}, a interface{}) interface{} {
@@ -284,6 +321,10 @@ func BenchmarkMappers(b *testing.B) {
 				total = t.(int)
 				and.Done()
 			}, m)
+
+		if err != nil {
+			b.Fatal(err)
+		}
 
 		for _, v := range []int{0, 1, 2, -1} {
 			q <- v
@@ -319,7 +360,12 @@ func TestMapperAdd(t *testing.T) {
 	} {
 
 		add := reducers.NewAssociativeInt64(0, reducers.Add)
-		q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+		q, err := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		for _, v := range set {
 			q <- v
 		}
@@ -364,7 +410,10 @@ func TestMapperCancelled(t *testing.T) {
 	} {
 
 		add := reducers.NewAssociativeInt64(0, reducers.Add)
-		q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+		q, err := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if i == 1 {
 			t.Fatal("Should have panic-ed by now")

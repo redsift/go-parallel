@@ -1,3 +1,5 @@
+// Package parallel provides an implementation of map/reduce using channels and go routines.
+
 package parallel
 
 import (
@@ -84,7 +86,7 @@ func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (
 	}, c
 }
 
-// A CancelFunc tells a mapper to shut down any worker routines
+// CancelFunc tells a mapper to shut down any worker routines
 type CancelFunc func()
 
 func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*mapper, CancelFunc) {
@@ -157,11 +159,20 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 	}
 }
 
+// Parallel performs a map/reduce using go routines and channels
+//
+// `value` is the initial value of the reducer i.e. the first `previous` for the reducer
+// `mapper` functions are called in multiple goroutines, they consume jobs and returns `current` for the reducer
+// `reducer` functions are called synchronously and returns the value for `previous` for the next invocation
+// `then` receives the last output produced by the reducer
+// `opts` control context, queue sizes, goroutine pool & `init` values for mappers
+//
+// The returned channel is the job queue and must be closed by the caller when all jobs have been submitted
 func Parallel(value interface{},
-	mapper func(interface{}, interface{}) interface{},
-	reducer func(interface{}, interface{}) interface{},
-	then func(interface{}, error),
-	opts ...Option) chan interface{} {
+	mapper func(init interface{}, job interface{}) interface{},
+	reducer func(previous interface{}, current interface{}) interface{},
+	then func(final interface{}, err error),
+	opts ...Option) (chan interface{}, error) {
 
 	cpus := runtime.NumCPU()
 	o := options{
@@ -172,10 +183,7 @@ func Parallel(value interface{},
 	for _, opt := range opts {
 		err := opt(&o)
 		if err != nil {
-			if then != nil {
-				then(nil, err)
-			}
-			return nil
+			return nil, err
 		}
 	}
 
@@ -263,5 +271,5 @@ func Parallel(value interface{},
 		o.mapper.parallel <- m
 	}
 
-	return in
+	return in, nil
 }
