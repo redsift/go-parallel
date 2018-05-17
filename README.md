@@ -47,7 +47,7 @@ non default `Option`.
 `then` is final result of all the associatively performed `reducer` operations.
 Any errors during map or reduce operations will be returned to the `then` function.
 
-Reference TestNetworkRequestsInParallel for an representative example. The
+Reference [TestNetworkRequestsInParallel](https://github.com/redsift/go-parallel/blob/master/network_test.go#L137-L173) for an representative example. The
 use of parallel network calls via `Parallel` reduce average test time
 in this instance by **~13x**.
 ```
