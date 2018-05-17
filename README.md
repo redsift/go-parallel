@@ -17,13 +17,22 @@ one time go routine initialization.
 ```
 // Parallel performs a map/reduce using go routines and channels
 //
-// `value` is the initial value of the reducer i.e. the first `previous` for the reducer
-// `mapper` functions are called in multiple goroutines, they consume jobs and returns `current` for the reducer
-// `reducer` functions are called synchronously and returns the value for `previous` for the next invocation
-// `then` receives the last output produced by the reducer
-// `opts` control context, queue sizes, goroutine pool & `init` values for mappers
+// value: is the initial value of the reducer i.e. the first `previous` for the reducer
+// mapper: functions are called in multiple goroutines, they consume jobs and returns `current`
+// for the reducer
+// reducer: functions are called synchronously and returns the value for `previous` for the
+// next invocation
+// then: receives the last output produced by the reducer
+// opts: control context, queue sizes, goroutine pool & `init` values for mappers
 //
-// The returned channel is the job queue and must be closed by the caller when all jobs have been submitted
+// The returned channel is the job queue and must be closed by the caller when all jobs have
+// been submitted
+
+func Parallel(value interface{},
+	mapper func(init interface{}, job interface{}) interface{},
+	reducer func(previous interface{}, current interface{}) interface{},
+	then func(final interface{}, err error),
+	opts ...Option) (chan interface{}, error)
 ```
 
 The pipeline is derived from a standard map/reduce structure where the `mapper`
@@ -38,6 +47,18 @@ non default `Option`.
 `then` is final result of all the associatively performed `reducer` operations.
 Any errors during map or reduce operations will be returned to the `then` function.
 
+Reference TestNetworkRequestsInParallel for an representative example. The
+use of parallel network calls via `Parallel` reduce average test time
+in this instance by **~13x**.
+```
+=== RUN   TestNetworkRequestsSerially
+--- PASS: TestNetworkRequestsSerially (26.50s)
+	network_test.go:134: [https://facebook.com/ = TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 ...
+=== RUN   TestNetworkRequestsInParallel
+--- PASS: TestNetworkRequestsInParallel (2.08s)
+	network_test.go:172: [https://wikipedia.org/ = TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 ...
+```
+
 ## Performance
 
 While this library is typically used for mapping operations that are in
@@ -46,7 +67,7 @@ compute heavy workloads with the right approach.
 
 ### Sample performance on an 8 core macOS desktop
 ```
-go test -bench=.
+$ go test -bench=.
 goos: darwin
 goarch: amd64
 pkg: github.com/redsift/go-parallel
