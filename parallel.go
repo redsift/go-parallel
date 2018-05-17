@@ -49,6 +49,7 @@ type options struct {
 	cancel CancelFunc
 }
 
+// Option encapsulate all available options for the Parallel operation
 type Option func(*options) error
 
 // OptQueue defaults to the with of the Parallel operation but may be set to a larger value
@@ -170,6 +171,33 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 	}
 }
 
+func makeOptions(opts []Option) (*options, error) {
+	o := options{
+		ctx: context.Background(),
+	}
+
+	for _, opt := range opts {
+		err := opt(&o)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// no mapper supplied, make a new one on every invocation
+	if o.mapper == nil {
+		m, c := newMapper(runtime.NumCPU(), nil, nil)
+
+		o.mapper = m
+		o.cancel = c
+	}
+
+	if o.queue == 0 {
+		o.queue = o.mapper.count
+	}
+
+	return &o, nil
+}
+
 // Parallel performs a map/reduce using go routines and channels
 //
 // value: is the initial value of the reducer i.e. the first `previous` for the reducer
@@ -185,28 +213,9 @@ func Parallel(value interface{},
 	then func(final interface{}, err error),
 	opts ...Option) (chan interface{}, error) {
 
-	cpus := runtime.NumCPU()
-	o := options{
-		ctx: context.Background(),
-	}
-
-	for _, opt := range opts {
-		err := opt(&o)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// no mapper supplied, make a new one on every invocation
-	if o.mapper == nil {
-		m, c := newMapper(cpus, nil, nil)
-
-		o.mapper = m
-		o.cancel = c
-	}
-
-	if o.queue == 0 {
-		o.queue = o.mapper.count
+	o, err := makeOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	in := make(chan interface{}, o.queue)
