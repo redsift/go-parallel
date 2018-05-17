@@ -1,3 +1,0 @@
-package reducer
-
-//TODO: minmax

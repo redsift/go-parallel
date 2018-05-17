@@ -1,4 +1,4 @@
-package reducer
+package reducers
 
 import (
 	"sync"
@@ -46,9 +46,6 @@ func (a *ass) Value() int64 {
 	return a.initial
 }
 
-func (a *ass) Init() func(int) interface{} {
-	return nil
-}
 
 func (a *ass) Reducer() func(interface{}, interface{}) interface{} {
 	return func(p interface{}, v interface{}) interface{} {
