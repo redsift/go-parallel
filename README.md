@@ -1,11 +1,11 @@
 # Parallel
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/redsift/dnstrace)](https://goreportcard.com/report/github.com/redsift/go-parallel)
-[![Release](https://img.shields.io/github/release/redsift/dnstrace/all.svg)](https://github.com/redsift/go-parallel/releases)
-[![CircleCI](https://circleci.com/gh/redsift/dnstrace.svg?style=shield)](https://circleci.com/gh/redsift/go-parallel)
+[![Go Report Card](https://goreportcard.com/badge/github.com/redsift/go-parallel)](https://goreportcard.com/report/github.com/redsift/go-parallel)
+[![Release](https://img.shields.io/github/release/redsift/go-parallel/all.svg)](https://github.com/redsift/go-parallel/releases)
+[![CircleCI](https://circleci.com/gh/redsift/go-parallel.svg?style=shield)](https://circleci.com/gh/redsift/go-parallel)
 
-Dependency free micro library for OpenMP style parallel loops using go
-routines.
+Dependency free micro library for map/reduce and parallel loops using go
+routines and channels.
 
 ## Features
 
@@ -15,11 +15,15 @@ one time go routine initialization.
 ## Usage
 
 ```
-func Parallel(value interface{}, // the first `previous` for the reducer
-	mapper func(init interface{}, job interface{}) interface{}, // returns `current` for the reducer
-	reducer func(previous interface{}, current interface{}) interface{}, // returns the value for `previous` on next invocation
-	then func(final interface{}, err error), // `final` is the last output produced by the reducer
-	opts ...Option) (chan interface{}, error) { // the channel must be closed by the caller when all jobs have been submitted
+// Parallel performs a map/reduce using go routines and channels
+//
+// `value` is the initial value of the reducer i.e. the first `previous` for the reducer
+// `mapper` functions are called in multiple goroutines, they consume jobs and returns `current` for the reducer
+// `reducer` functions are called synchronously and returns the value for `previous` for the next invocation
+// `then` receives the last output produced by the reducer
+// `opts` control context, queue sizes, goroutine pool & `init` values for mappers
+//
+// The returned channel is the job queue and must be closed by the caller when all jobs have been submitted
 ```
 
 The pipeline is derived from a standard map/reduce structure where the `mapper`

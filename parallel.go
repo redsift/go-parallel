@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	ErrOptInvalidValueCount   = errors.New("invalid option value: count")
 	ErrOptInvalidValueQueue   = errors.New("invalid option value: queue")
 	ErrOptInvalidValueContext = errors.New("invalid option value: context")
 	ErrCancelledMapper        = errors.New("mapper was already cancelled")
