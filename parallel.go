@@ -1,5 +1,4 @@
 // Package parallel provides an implementation of map/reduce using channels and go routines.
-
 package parallel
 
 import (
@@ -13,11 +12,18 @@ import (
 )
 
 var (
-	ErrOptInvalidValueQueue   = errors.New("invalid option value: queue")
+	// ErrOptInvalidValueQueue indicates the option supplied to set the size of the inbound job queue is invalid
+	ErrOptInvalidValueQueue = errors.New("invalid option value: queue")
+
+	// ErrOptInvalidValueContext indicates the option supplied to set the context for the parallel operation is invalid
 	ErrOptInvalidValueContext = errors.New("invalid option value: context")
-	ErrCancelledMapper        = errors.New("mapper was already cancelled")
+
+	// ErrCancelledMapper indicates that the mapper option has been reused after being cancelled
+	ErrCancelledMapper = errors.New("mapper was already cancelled")
 )
 
+// ErrTrappedPanic wraps an underlying panic and call stack for
+// a panic that was trapped during mapping or reduction
 type ErrTrappedPanic struct {
 	Panic interface{}
 	Stack []byte
@@ -45,6 +51,8 @@ type options struct {
 
 type Option func(*options) error
 
+// OptQueue defaults to the with of the Parallel operation but may be set to a larger value
+// to allow the job submission operations to buffer further
 func OptQueue(sz int) Option {
 	return func(o *options) error {
 		if sz < 1 {
@@ -55,6 +63,8 @@ func OptQueue(sz int) Option {
 	}
 }
 
+// OptContext can be used to supply a context for a Parallel operation, typically
+// to affect timeout and provide cancellation
 func OptContext(ctx context.Context) Option {
 	return func(o *options) error {
 		if ctx == nil {
@@ -72,6 +82,11 @@ type mapperOp struct {
 	cls, clx <-chan struct{}
 }
 
+// CancelFunc tells a mapper to shut down any worker routines
+type CancelFunc func()
+
+// OptMappers can be used to control the number of go routines used to run mappers
+// (defaults to runtime.NumCPU()) and supply `init` and `destroy` hooks for the routines
 func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (Option, CancelFunc) {
 	if sz < 1 {
 		sz = runtime.NumCPU() // cant change after process is started
@@ -84,9 +99,6 @@ func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (
 		return nil
 	}, c
 }
-
-// CancelFunc tells a mapper to shut down any worker routines
-type CancelFunc func()
 
 func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*mapper, CancelFunc) {
 	m := &mapper{count: sz, parallel: make(chan mapperOp, sz)}
@@ -160,11 +172,11 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 
 // Parallel performs a map/reduce using go routines and channels
 //
-// `value` is the initial value of the reducer i.e. the first `previous` for the reducer
-// `mapper` functions are called in multiple goroutines, they consume jobs and returns `current` for the reducer
-// `reducer` functions are called synchronously and returns the value for `previous` for the next invocation
-// `then` receives the last output produced by the reducer
-// `opts` control context, queue sizes, goroutine pool & `init` values for mappers
+// value: is the initial value of the reducer i.e. the first `previous` for the reducer
+// mapper: functions are called in multiple goroutines, they consume jobs and returns `current` for the reducer
+// reducer: functions are called synchronously and returns the value for `previous` for the next invocation
+// then: receives the last output produced by the reducer
+// opts: control context, queue sizes, goroutine pool & `init` values for mappers
 //
 // The returned channel is the job queue and must be closed by the caller when all jobs have been submitted
 func Parallel(value interface{},
@@ -175,8 +187,7 @@ func Parallel(value interface{},
 
 	cpus := runtime.NumCPU()
 	o := options{
-		queue: cpus,
-		ctx:   context.Background(),
+		ctx: context.Background(),
 	}
 
 	for _, opt := range opts {
@@ -192,6 +203,10 @@ func Parallel(value interface{},
 
 		o.mapper = m
 		o.cancel = c
+	}
+
+	if o.queue == 0 {
+		o.queue = o.mapper.count
 	}
 
 	in := make(chan interface{}, o.queue)
