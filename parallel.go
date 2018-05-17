@@ -127,7 +127,7 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 				// drain the in channel as we don't want the writer to
 				// block
 				if in != nil {
-					for _ = range in {
+					for range in {
 					}
 				}
 
@@ -276,7 +276,7 @@ func Parallel(value interface{},
 				// writing so signal them to close using clx and drain
 				// the out channel to unblock them
 				close(clx)
-				for _ = range out {
+				for range out {
 				}
 			}()
 			for a := range out {
