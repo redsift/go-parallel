@@ -7,6 +7,7 @@ import (
 	"context"
 	"math"
 	"github.com/redsift/go-parallel/mappers"
+	"sync/atomic"
 )
 
 func TestExplicit(t *testing.T) {
@@ -299,4 +300,104 @@ func BenchmarkMappers(b *testing.B) {
 			b.Error("total incorrect", total, b.N)
 		}
 	}
+}
+
+
+func TestMapperAdd(t *testing.T) {
+	const routines = 142
+
+	var wg sync.WaitGroup
+	var i int32
+	m, c := OptMappers(routines, func(int) interface{} {
+		wg.Add(1)
+		atomic.AddInt32(&i, 1)
+		return nil
+	},
+	func(interface{}) {
+		wg.Done()
+	})
+
+	for test, set := range [][]int64{
+		{0, 1, 2, -1, -2}, // 0
+		{0, 1, 2, -1, -1}, // 1
+		{0, 1, 20, -1, -20, 2}, // 2
+	} {
+
+		add := reducers.NewAssociativeInt64(0, reducers.Add)
+		q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+		for _, v := range set {
+			q <- v
+		}
+		close(q)
+
+		total, err := add.Get()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if total != int64(test) {
+			t.Error("total incorrect", total, "!=", test)
+		}
+	}
+
+	c()
+
+	wg.Wait()
+
+	if i != routines {
+		t.Error("unexpected number of inits", i)
+	}
+}
+
+
+func TestMapperCancelled(t *testing.T) {
+	const routines = 142
+
+	var wg sync.WaitGroup
+	var i int32
+	m, c := OptMappers(routines, func(int) interface{} {
+		wg.Add(1)
+		atomic.AddInt32(&i, 1)
+		return nil
+	},
+		func(interface{}) {
+			wg.Done()
+		})
+
+	for test, set := range [][]int64{
+		{0, 1, 2, -1, -2}, // 0
+		{0, 1, 2, -1, -1}, // 1
+	} {
+
+		add := reducers.NewAssociativeInt64(0, reducers.Add)
+		q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then(), m)
+
+		if i == 1 {
+			t.Fatal("Should have panic-ed by now")
+		}
+
+		for _, v := range set {
+			q <- v
+		}
+		close(q)
+
+		total, err := add.Get()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if total != int64(test) {
+			t.Error("total incorrect", total, "!=", test)
+		}
+
+		c()
+
+		defer func() {
+			if r := recover(); r != nil {
+				t.Log("expected panic", r)
+			}
+		}()
+	}
+
+
 }

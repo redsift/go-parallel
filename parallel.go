@@ -74,7 +74,7 @@ type mapperOp struct {
 	cls, clx <- chan struct{}
 }
 
-func OptMappers(sz int, init func(int) interface{}, destroy func(interface{}) interface{}) (Option, CancelFunc) {
+func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (Option, CancelFunc) {
 	if sz < 1 {
 		sz = runtime.NumCPU() // cant change after process is started
 	}
@@ -90,7 +90,7 @@ func OptMappers(sz int, init func(int) interface{}, destroy func(interface{}) in
 // A CancelFunc tells a mapper to shut down any worker routines
 type CancelFunc func()
 
-func newMapper(sz int, init func(int) interface{}, destroy func(interface{}) interface{}) (*mapper, CancelFunc) {
+func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*mapper, CancelFunc) {
 	m := &mapper{count: sz, parallel: make(chan mapperOp, sz)}
 
 	for i := 0; i < m.count; i++ {
@@ -155,12 +155,11 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{}) int
 	}
 
 	return m, func() {
-		m.trapped.Store(ErrCancelledMapper)
+		m.trapped.Store(ErrTrappedPanic{Panic: ErrCancelledMapper})
 		close(m.parallel)
 	}
 }
 
-// size, timeout, cache go routines, handle panic (return err)
 func Parallel(	value 	interface{},
 				mapper 	func(interface{}, interface{}) interface{},
 				reducer func(interface{}, interface{}) interface{},
