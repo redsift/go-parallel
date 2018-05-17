@@ -1,13 +1,14 @@
 package parallel
 
 import (
-	"testing"
-	"sync"
-	"github.com/redsift/go-parallel/reducers"
 	"context"
 	"math"
-	"github.com/redsift/go-parallel/mappers"
+	"sync"
 	"sync/atomic"
+	"testing"
+
+	"github.com/redsift/go-parallel/mappers"
+	"github.com/redsift/go-parallel/reducers"
 )
 
 func TestExplicit(t *testing.T) {
@@ -37,10 +38,9 @@ func TestExplicit(t *testing.T) {
 	}
 }
 
-
 func TestReducerAdd(t *testing.T) {
 	add := reducers.NewAssociativeInt64(0, reducers.Add)
-	
+
 	q := Parallel(add.Value(), mappers.Noop, add.Reducer(), add.Then())
 
 	for _, v := range []int64{0, 1, 2, -1} {
@@ -61,7 +61,7 @@ func TestReducerAdd(t *testing.T) {
 func TestReducerMult1(t *testing.T) {
 	add := reducers.NewAssociativeInt64(0, reducers.Multiply)
 
-	q := Parallel(add.Value(),func(_ interface{}, j interface{}) interface{} {
+	q := Parallel(add.Value(), func(_ interface{}, j interface{}) interface{} {
 		return j
 	}, add.Reducer(), add.Then())
 
@@ -182,12 +182,10 @@ func TestCancel(t *testing.T) {
 	}
 }
 
-
 func TestPanicMap(t *testing.T) {
 
 	var and sync.WaitGroup
 	and.Add(1)
-
 
 	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		panic("junk")
@@ -209,12 +207,10 @@ func TestPanicMap(t *testing.T) {
 	and.Wait()
 }
 
-
 func TestPanicReduce(t *testing.T) {
 
 	var and sync.WaitGroup
 	and.Add(1)
-
 
 	q := Parallel(0, func(_ interface{}, j interface{}) interface{} {
 		return j
@@ -245,14 +241,14 @@ func BenchmarkSimple(b *testing.B) {
 		var total int
 
 		q := Parallel(0,
-		func(_ interface{}, j interface{}) interface{} {
-			return j
-		}, func(p interface{}, a interface{}) interface{} {
-			return p.(int) + a.(int)
-		}, func(t interface{}, err error) {
-			total = t.(int)
-			and.Done()
-		})
+			func(_ interface{}, j interface{}) interface{} {
+				return j
+			}, func(p interface{}, a interface{}) interface{} {
+				return p.(int) + a.(int)
+			}, func(t interface{}, err error) {
+				total = t.(int)
+				and.Done()
+			})
 
 		for _, v := range []int{0, 1, 2, -1} {
 			q <- v
@@ -302,7 +298,6 @@ func BenchmarkMappers(b *testing.B) {
 	}
 }
 
-
 func TestMapperAdd(t *testing.T) {
 	const routines = 142
 
@@ -313,13 +308,13 @@ func TestMapperAdd(t *testing.T) {
 		atomic.AddInt32(&i, 1)
 		return nil
 	},
-	func(interface{}) {
-		wg.Done()
-	})
+		func(interface{}) {
+			wg.Done()
+		})
 
 	for test, set := range [][]int64{
-		{0, 1, 2, -1, -2}, // 0
-		{0, 1, 2, -1, -1}, // 1
+		{0, 1, 2, -1, -2},      // 0
+		{0, 1, 2, -1, -1},      // 1
 		{0, 1, 20, -1, -20, 2}, // 2
 	} {
 
@@ -348,7 +343,6 @@ func TestMapperAdd(t *testing.T) {
 		t.Error("unexpected number of inits", i)
 	}
 }
-
 
 func TestMapperCancelled(t *testing.T) {
 	const routines = 142
@@ -398,6 +392,5 @@ func TestMapperCancelled(t *testing.T) {
 			}
 		}()
 	}
-
 
 }

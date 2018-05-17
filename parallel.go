@@ -1,20 +1,20 @@
 package parallel
 
 import (
-	"sync"
-	"runtime"
-	"errors"
 	"context"
+	"errors"
 	"fmt"
-	"sync/atomic"
+	"runtime"
 	"runtime/debug"
+	"sync"
+	"sync/atomic"
 )
 
 var (
-	ErrOptInvalidValueCount = errors.New("invalid option value: count")
-	ErrOptInvalidValueQueue = errors.New("invalid option value: queue")
+	ErrOptInvalidValueCount   = errors.New("invalid option value: count")
+	ErrOptInvalidValueQueue   = errors.New("invalid option value: queue")
 	ErrOptInvalidValueContext = errors.New("invalid option value: context")
-	ErrCancelledMapper = errors.New("mapper was already cancelled")
+	ErrCancelledMapper        = errors.New("mapper was already cancelled")
 )
 
 type ErrTrappedPanic struct {
@@ -26,7 +26,6 @@ func (e ErrTrappedPanic) Error() string {
 	return fmt.Sprint(e.Panic, "\n", string(e.Stack))
 }
 
-
 type mapper struct {
 	count int
 
@@ -35,20 +34,18 @@ type mapper struct {
 	trapped atomic.Value
 }
 
-
 type options struct {
-	queue int
-	ctx	  context.Context
+	queue  int
+	ctx    context.Context
 	mapper *mapper
 	// cancel function for mapper, set if default mapper is used
 	cancel CancelFunc
 }
 
-type Option func (*options) error
-
+type Option func(*options) error
 
 func OptQueue(sz int) Option {
-	return func (o* options) error {
+	return func(o *options) error {
 		if sz < 1 {
 			return ErrOptInvalidValueQueue
 		}
@@ -58,7 +55,7 @@ func OptQueue(sz int) Option {
 }
 
 func OptContext(ctx context.Context) Option {
-	return func (o* options) error {
+	return func(o *options) error {
 		if ctx == nil {
 			return ErrOptInvalidValueContext
 		}
@@ -68,10 +65,10 @@ func OptContext(ctx context.Context) Option {
 }
 
 type mapperOp struct {
-	fn func(interface{}, interface{}) interface{}
-	in, out chan interface{}
-	wg *sync.WaitGroup
-	cls, clx <- chan struct{}
+	fn       func(interface{}, interface{}) interface{}
+	in, out  chan interface{}
+	wg       *sync.WaitGroup
+	cls, clx <-chan struct{}
 }
 
 func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (Option, CancelFunc) {
@@ -80,7 +77,7 @@ func OptMappers(sz int, init func(int) interface{}, destroy func(interface{})) (
 	}
 	m, c := newMapper(sz, init, destroy)
 
-	return func (o* options) error {
+	return func(o *options) error {
 		o.mapper = m
 
 		return nil
@@ -113,7 +110,6 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 					wg.Done()
 				}
 
-
 				// drain the in channel as we don't want the writer to
 				// block
 				if in != nil {
@@ -130,13 +126,14 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 
 				wg = op.wg
 				in = op.in
-				loop:
+			loop:
 				for {
 					select {
 					case <-op.clx:
 						break loop
 					case <-op.cls:
-						for _ = range in {}
+						for _ = range in {
+						}
 						break loop
 
 					case j, ok := <-in:
@@ -160,16 +157,16 @@ func newMapper(sz int, init func(int) interface{}, destroy func(interface{})) (*
 	}
 }
 
-func Parallel(	value 	interface{},
-				mapper 	func(interface{}, interface{}) interface{},
-				reducer func(interface{}, interface{}) interface{},
-				then 	func(interface{}, error),
-				opts ...Option) chan interface{}  {
+func Parallel(value interface{},
+	mapper func(interface{}, interface{}) interface{},
+	reducer func(interface{}, interface{}) interface{},
+	then func(interface{}, error),
+	opts ...Option) chan interface{} {
 
 	cpus := runtime.NumCPU()
 	o := options{
-		queue: 	cpus,
-		ctx: 	context.Background(),
+		queue: cpus,
+		ctx:   context.Background(),
 	}
 
 	for _, opt := range opts {
@@ -248,7 +245,8 @@ func Parallel(	value 	interface{},
 				// writing so signal them to close using clx and drain
 				// the out channel to unblock them
 				close(clx)
-				for _ = range out { }
+				for _ = range out {
+				}
 			}()
 			for a := range out {
 				t = reducer(t, a)

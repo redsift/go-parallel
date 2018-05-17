@@ -7,10 +7,10 @@ import (
 type FnInt64 func(p, c int64) int64
 
 type ass struct {
-	wg *sync.WaitGroup
-	fn FnInt64
+	wg              *sync.WaitGroup
+	fn              FnInt64
 	initial, result int64
-	err error
+	err             error
 }
 
 func Add(p, c int64) int64 {
@@ -45,7 +45,6 @@ func NewAssociativeInt64(initial int64, fn FnInt64) *ass {
 func (a *ass) Value() int64 {
 	return a.initial
 }
-
 
 func (a *ass) Reducer() func(interface{}, interface{}) interface{} {
 	return func(p interface{}, v interface{}) interface{} {
